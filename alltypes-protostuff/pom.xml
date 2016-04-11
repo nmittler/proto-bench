@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.google.protobench</groupId>
+        <artifactId>protobench-parent</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>alltypes-protostuff</artifactId>
+    <name>Protobench [AllTypes Protobufstuff]</name>
+
+    <properties>
+        <protoSourceDir>src/main/proto</protoSourceDir>
+        <protoGenDir>target/generated-sources/proto/java</protoGenDir>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.protostuff</groupId>
+            <artifactId>protostuff-core</artifactId>
+            <version>${protostuffVersion}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>1.10</version>
+                <executions>
+                    <execution>
+                        <id>add-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${protoGenDir}</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>io.protostuff</groupId>
+                <artifactId>protostuff-maven-plugin</artifactId>
+                <version>${protostuffVersion}</version>
+                <configuration>
+                    <protoModules>
+                        <protoModule>
+                            <source>${protoSourceDir}</source>
+                            <outputDir>${protoGenDir}</outputDir>
+                            <output>java_bean</output>
+                        </protoModule>
+                    </protoModules>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>generate-sources</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
