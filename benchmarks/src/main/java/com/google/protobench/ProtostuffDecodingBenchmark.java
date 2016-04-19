@@ -2,7 +2,6 @@ package com.google.protobench;
 
 import com.google.protobuf.ByteString;
 
-import io.protostuff.ByteArrayInput;
 import io.protostuff.ProtobufIOUtil;
 
 import org.openjdk.jmh.annotations.Benchmark;
@@ -15,13 +14,11 @@ import org.openjdk.jmh.annotations.State;
 import benchmark.protobuf.UnittestProto;
 import benchmark.protostuff.NestedTestAllTypes;
 
-import java.io.ByteArrayInputStream;
-import java.io.FileInputStream;
 import java.io.InputStream;
 
 @State(Scope.Benchmark)
 @Fork(1)
-public class DecodingBenchmark {
+public class ProtostuffDecodingBenchmark {
 
   public enum Impl {
     PROTOBUF,
@@ -55,7 +52,7 @@ public class DecodingBenchmark {
   }
 
   public static void main(String[] args) throws Exception {
-    DecodingBenchmark bm = new DecodingBenchmark();
+    ProtostuffDecodingBenchmark bm = new ProtostuffDecodingBenchmark();
     bm.impl = Impl.PROTOBUF;
     bm.setUp();
 
