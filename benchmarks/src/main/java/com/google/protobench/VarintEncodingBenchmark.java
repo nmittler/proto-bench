@@ -45,21 +45,36 @@ public class VarintEncodingBenchmark {
         e.reset();
       }
     }),
-    REVERSE_CLZ(new DirectionEncoder() {
+    REVERSE_CLZ_INDEX(new DirectionEncoder() {
       private final ReverseEncoder e = new ReverseEncoder(new byte[100], 0, 100);
       @Override
       void writeUInt32(int value) throws IOException {
-        e.writeUInt32NoTagClz(value);
+        e.writeUInt32NoTagClzIndex(value);
       }
       @Override
       void writeUInt64(long value) throws IOException {
-        e.writeUInt64NoTagClz(value);
+        e.writeUInt64NoTagClzIndex(value);
       }
       @Override
       void reset() {
         e.reset();
       }
-    });
+    }),
+    REVERSE_CLZ_DIV(new DirectionEncoder() {
+      private final ReverseEncoder e = new ReverseEncoder(new byte[100], 0, 100);
+      @Override
+      void writeUInt32(int value) throws IOException {
+        e.writeUInt32NoTagClzDiv(value);
+      }
+      @Override
+      void writeUInt64(long value) throws IOException {
+        e.writeUInt64NoTagClzDiv(value);
+      }
+      @Override
+      void reset() {
+        e.reset();
+      }
+    });;
 
     Direction(DirectionEncoder encoder) {
       this.encoder = encoder;
@@ -68,7 +83,6 @@ public class VarintEncodingBenchmark {
     final DirectionEncoder encoder;
 
     static abstract class DirectionEncoder {
-      final byte[] buffer = new byte[100];
       abstract void writeUInt32(int value) throws IOException;
       abstract void writeUInt64(long value) throws IOException;
       abstract void reset();

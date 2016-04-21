@@ -1,5 +1,7 @@
 package com.google.protobench;
 
+import org.junit.Assert;
+
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -308,9 +310,28 @@ final class ReverseEncoder implements Encoder {
         buffer[position--] = (byte) ((value & 0x7F) | sign);
     }
   }
-  final void writeUInt32NoTagClz(int value) throws IOException {
+  final void writeUInt32NoTagClzIndex(int value) throws IOException {
     int sign = 0;
     switch(LEADING_ZEROS_TO_BYTES_32[Integer.numberOfLeadingZeros(value)]) {
+      case 5:
+        buffer[position--] = (byte) (value >>> 28);
+        sign = 0x80;
+      case 4:
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | sign);
+        sign = 0x80;
+      case 3:
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | sign);
+        sign = 0x80;
+      case 2:
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | sign);
+        sign = 0x80;
+      case 1:
+        buffer[position--] = (byte) ((value & 0x7F) | sign);
+    }
+  }
+  final void writeUInt32NoTagClzDiv(int value) throws IOException {
+    int sign = 0;
+    switch((((32 - Integer.numberOfLeadingZeros(value)) - 1) / 7) + 1) {
       case 5:
         buffer[position--] = (byte) (value >>> 28);
         sign = 0x80;
@@ -461,9 +482,44 @@ final class ReverseEncoder implements Encoder {
     }
   }
 
-  final void writeUInt64NoTagClz(long value) throws IOException {
+  final void writeUInt64NoTagClzIndex(long value) throws IOException {
     int sign = 0;
     switch (LEADING_ZEROS_TO_BYTES_64[Long.numberOfLeadingZeros(value)]) {
+      case 10:
+        buffer[position--] = (byte) ((value >>> 63) | sign);
+        sign = 0x80;
+      case 9:
+        buffer[position--] = (byte) (((value >>> 56) & 0x7F) | sign);
+        sign = 0x80;
+      case 8:
+        buffer[position--] = (byte) (((value >>> 49) & 0x7F) | sign);
+        sign = 0x80;
+      case 7:
+        buffer[position--] = (byte) (((value >>> 42) & 0x7F) | sign);
+        sign = 0x80;
+      case 6:
+        buffer[position--] = (byte) (((value >>> 35) & 0x7F) | sign);
+        sign = 0x80;
+      case 5:
+        buffer[position--] = (byte) (((value >>> 28) & 0x7F) | sign);
+        sign = 0x80;
+      case 4:
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | sign);
+        sign = 0x80;
+      case 3:
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | sign);
+        sign = 0x80;
+      case 2:
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | sign);
+        sign = 0x80;
+      case 1:
+        buffer[position--] = (byte) ((value & 0x7F) | sign);
+    }
+  }
+
+  final void writeUInt64NoTagClzDiv(long value) throws IOException {
+    int sign = 0;
+    switch ((((64 - Long.numberOfLeadingZeros(value)) - 1) / 7) + 1) {
       case 10:
         buffer[position--] = (byte) ((value >>> 63) | sign);
         sign = 0x80;
