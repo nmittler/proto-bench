@@ -195,13 +195,68 @@ final class ReverseEncoder implements Encoder {
     }
   }
 
+  private static final byte CLZ_LOOKUP[] = {
+          32, 31, 30, 30, 29, 29, 29, 29,
+          28, 28, 28, 28, 28, 28, 28, 28,
+          27, 27, 27, 27, 27, 27, 27, 27,
+          27, 27, 27, 27, 27, 27, 27, 27,
+          26, 26, 26, 26, 26, 26, 26, 26,
+          26, 26, 26, 26, 26, 26, 26, 26,
+          26, 26, 26, 26, 26, 26, 26, 26,
+          26, 26, 26, 26, 26, 26, 26, 26,
+          25, 25, 25, 25, 25, 25, 25, 25,
+          25, 25, 25, 25, 25, 25, 25, 25,
+          25, 25, 25, 25, 25, 25, 25, 25,
+          25, 25, 25, 25, 25, 25, 25, 25,
+          25, 25, 25, 25, 25, 25, 25, 25,
+          25, 25, 25, 25, 25, 25, 25, 25,
+          25, 25, 25, 25, 25, 25, 25, 25,
+          25, 25, 25, 25, 25, 25, 25, 25,
+          24, 24, 24, 24, 24, 24, 24, 24,
+          24, 24, 24, 24, 24, 24, 24, 24,
+          24, 24, 24, 24, 24, 24, 24, 24,
+          24, 24, 24, 24, 24, 24, 24, 24,
+          24, 24, 24, 24, 24, 24, 24, 24,
+          24, 24, 24, 24, 24, 24, 24, 24,
+          24, 24, 24, 24, 24, 24, 24, 24,
+          24, 24, 24, 24, 24, 24, 24, 24,
+          24, 24, 24, 24, 24, 24, 24, 24,
+          24, 24, 24, 24, 24, 24, 24, 24,
+          24, 24, 24, 24, 24, 24, 24, 24,
+          24, 24, 24, 24, 24, 24, 24, 24,
+          24, 24, 24, 24, 24, 24, 24, 24,
+          24, 24, 24, 24, 24, 24, 24, 24,
+          24, 24, 24, 24, 24, 24, 24, 24,
+          24, 24, 24, 24, 24, 24, 24, 24
+  };
+  private static int countLeadingZeros(int x) {
+    byte n;
+    if (x < 0 || x >= (1L << 16)) {
+      if (x < 0 || x >= (1L << 24)) {
+        n = 24;
+      }
+      else {
+        n = 16;
+      }
+    }
+    else {
+      if (x >= (1L << 8)) {
+        n = 8;
+      }
+      else {
+        n = 0;
+      }
+    }
+    return CLZ_LOOKUP[x >> n] - n;
+  }
+  
   private static final int[] SHIFT = new int[10];
   private static final int[] ABOVE_MASKS_32 = new int[32];
   private static final int[] BELOW_MASKS_32 = new int[32];
   private static final long[] ABOVE_MASKS_64 = new long[64];
   private static final long[] BELOW_MASKS_64 = new long[64];
-  private static final byte[] LEADING_ZEROS_TO_BYTES_32 = new byte[32];
-  private static final int[] LEADING_ZEROS_TO_BYTES_64 = new int[64];
+  private static final byte[] LEADING_ZEROS_TO_BYTES_32 = new byte[33];
+  private static final int[] LEADING_ZEROS_TO_BYTES_64 = new int[65];
   static {
     for (int i=0; i<10; ++i) {
       int shift = i * 7;
@@ -225,12 +280,52 @@ final class ReverseEncoder implements Encoder {
         LEADING_ZEROS_TO_BYTES_32[i] = (byte) numBytes;
       }
     }
+    LEADING_ZEROS_TO_BYTES_32[32] = 1;
     for(int i = 0, maxLeadingZeros = 0, numBytes = 10; numBytes > 0 && maxLeadingZeros < 64; --numBytes, maxLeadingZeros += 7) {
       for (; i <= maxLeadingZeros; ++i) {
         LEADING_ZEROS_TO_BYTES_64[i] = numBytes;
       }
     }
+    LEADING_ZEROS_TO_BYTES_64[64] = 1;
     System.out.println("done.");
+  }
+  final void writeUInt32NoTagCalc(int value) throws IOException {
+    int sign = 0;
+    switch(Utils.computeUInt32SizeNoTag(value)) {
+      case 5:
+        buffer[position--] = (byte) (value >>> 28);
+        sign = 0x80;
+      case 4:
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | sign);
+        sign = 0x80;
+      case 3:
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | sign);
+        sign = 0x80;
+      case 2:
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | sign);
+        sign = 0x80;
+      case 1:
+        buffer[position--] = (byte) ((value & 0x7F) | sign);
+    }
+  }
+  final void writeUInt32NoTagClz(int value) throws IOException {
+    int sign = 0;
+    switch(LEADING_ZEROS_TO_BYTES_32[Integer.numberOfLeadingZeros(value)]) {
+      case 5:
+        buffer[position--] = (byte) (value >>> 28);
+        sign = 0x80;
+      case 4:
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | sign);
+        sign = 0x80;
+      case 3:
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | sign);
+        sign = 0x80;
+      case 2:
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | sign);
+        sign = 0x80;
+      case 1:
+        buffer[position--] = (byte) ((value & 0x7F) | sign);
+    }
   }
   @Override
   public final void writeUInt32NoTag(int value) throws IOException {
@@ -271,23 +366,7 @@ final class ReverseEncoder implements Encoder {
                       String.format("Pos: %d, limit: %d, len: %d", position, limit, 1)));
     }*/
 
-    int sign = 0;
-    switch(/*Utils.computeUInt32SizeNoTag(value)) {*/ LEADING_ZEROS_TO_BYTES_32[Integer.numberOfLeadingZeros(value)]) {
-      case 5:
-        buffer[position--] = (byte) (value >>> 28);
-        sign = 0x80;
-      case 4:
-        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | sign);
-        sign = 0x80;
-      case 3:
-        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | sign);
-        sign = 0x80;
-      case 2:
-        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | sign);
-        sign = 0x80;
-      case 1:
-        buffer[position--] = (byte) ((value & 0x7F) | sign);
-    }
+    writeUInt32NoTagCalc(value);
 
     /*if ((value & ~0x7F) == 0) {
       buffer[position--] = (byte) value;
@@ -347,81 +426,7 @@ final class ReverseEncoder implements Encoder {
     buffer[position--] = (byte) (value & 0xFF);
   }
 
-  @Override
-  public final void writeUInt64NoTag(long value) throws IOException {
-    if ((value & ~0x7FL) == 0) {
-      //System.err.println("1-byte");
-      buffer[position--] = (byte) value;
-      return;
-    }
-    if ((value & (~0x7FL << 7)) == 0) {
-      //System.err.println("2-byte");
-      buffer[position--] = (byte) (value >>> 7);
-      buffer[position--] = (byte) ((value & 0x7F) | 0x80);
-      return;
-    }
-    if ((value & (~0x7FL << 14)) == 0) {
-      //System.err.println("3-byte");
-      buffer[position--] = (byte) (value >>> 14);
-      buffer[position--] = (byte) (((value >>> 7) & 0x7FL) | 0x80);
-      buffer[position--] = (byte) ((value & 0x7FL) | 0x80);
-      return;
-    }
-    writeUInt64NoTagSlow(value);
-
-    /*int shift = 21; // Shift for the 4th byte.
-    while (true) {
-      if ((value & ABOVE_MASKS_64[shift]) == 0) {
-        buffer[position--] = (byte) (value >>> shift);
-        do {
-          shift -= 7;
-          buffer[position--] = (byte) ((int) ((value >>> shift) & 0x7F) | 0x80);
-        } while (shift > 0);
-        return;
-      }
-      shift += 7;
-    }*/
-
-    /*int size = Utils.computeUInt64SizeNoTag(value);
-    int forwardPos = (position - size) + 1;
-    if (forwardPos < offset) {
-      throw new OutOfSpaceException(
-              new IndexOutOfBoundsException(
-                      String.format("Pos: %d, offset: %d, len: %d", position, offset, size)));
-    }
-    position -= size;
-
-    if (HAS_UNSAFE_ARRAY_OPERATIONS && spaceLeft() >= MAX_VARINT_SIZE) {
-      long pos = ARRAY_BASE_OFFSET + forwardPos;
-      while (true) {
-        if ((value & ~0x7FL) == 0) {
-          UNSAFE.putByte(buffer, pos, (byte) value);
-          return;
-        } else {
-          UNSAFE.putByte(buffer, pos++, (byte) (((int) value & 0x7F) | 0x80));
-          value >>>= 7;
-        }
-      }
-    } else {
-      try {
-        while (true) {
-          if ((value & ~0x7FL) == 0) {
-            buffer[forwardPos++] = (byte) value;
-            return;
-          } else {
-            buffer[forwardPos++] = (byte) (((int) value & 0x7F) | 0x80);
-            value >>>= 7;
-          }
-        }
-      } catch (IndexOutOfBoundsException e) {
-        throw new OutOfSpaceException(
-                new IndexOutOfBoundsException(
-                        String.format("Pos: %d, limit: %d, len: %d", position, limit, 1)));
-      }
-    }*/
-  }
-
-  private void writeUInt64NoTagSlow(long value) throws IOException {
+  final void writeUInt64NoTagCalc(long value) throws IOException {
     int sign = 0;
     switch (Utils.computeUInt64SizeNoTag(value)) {
       case 10:
@@ -454,6 +459,68 @@ final class ReverseEncoder implements Encoder {
       case 1:
         buffer[position--] = (byte) ((value & 0x7F) | sign);
     }
+  }
+
+  final void writeUInt64NoTagClz(long value) throws IOException {
+    int sign = 0;
+    switch (LEADING_ZEROS_TO_BYTES_64[Long.numberOfLeadingZeros(value)]) {
+      case 10:
+        buffer[position--] = (byte) ((value >>> 63) | sign);
+        sign = 0x80;
+      case 9:
+        buffer[position--] = (byte) (((value >>> 56) & 0x7F) | sign);
+        sign = 0x80;
+      case 8:
+        buffer[position--] = (byte) (((value >>> 49) & 0x7F) | sign);
+        sign = 0x80;
+      case 7:
+        buffer[position--] = (byte) (((value >>> 42) & 0x7F) | sign);
+        sign = 0x80;
+      case 6:
+        buffer[position--] = (byte) (((value >>> 35) & 0x7F) | sign);
+        sign = 0x80;
+      case 5:
+        buffer[position--] = (byte) (((value >>> 28) & 0x7F) | sign);
+        sign = 0x80;
+      case 4:
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | sign);
+        sign = 0x80;
+      case 3:
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | sign);
+        sign = 0x80;
+      case 2:
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | sign);
+        sign = 0x80;
+      case 1:
+        buffer[position--] = (byte) ((value & 0x7F) | sign);
+    }
+  }
+
+  @Override
+  public final void writeUInt64NoTag(long value) throws IOException {
+    /*if ((value & ~0x7FL) == 0) {
+      //System.err.println("1-byte");
+      buffer[position--] = (byte) value;
+      return;
+    }
+    if ((value & (~0x7FL << 7)) == 0) {
+      //System.err.println("2-byte");
+      buffer[position--] = (byte) (value >>> 7);
+      buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+      return;
+    }
+    if ((value & (~0x7FL << 14)) == 0) {
+      //System.err.println("3-byte");
+      buffer[position--] = (byte) (value >>> 14);
+      buffer[position--] = (byte) (((value >>> 7) & 0x7FL) | 0x80);
+      buffer[position--] = (byte) ((value & 0x7FL) | 0x80);
+      return;
+    }
+    writeUInt64NoTagSlow(value);
+  }
+
+  private void writeUInt64NoTagSlow(long value) throws IOException {*/
+    writeUInt64NoTagCalc(value);
   }
 
   public final void writeFixed64NoTag(long value) throws IOException {
