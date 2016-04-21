@@ -13,6 +13,7 @@
         <protobufVersion>3.0.0-beta-2</protobufVersion>
         <protostuffVersion>1.4.0</protostuffVersion>
         <jmhVersion>1.11.3</jmhVersion>
+        <uberjar.name>benchmarks</uberjar.name>
     </properties>
 
     <modules>
