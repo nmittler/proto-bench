@@ -71,7 +71,7 @@ public class EncoderEquivalenceTest {
   private byte[] writeUInt32Reverse(int value) throws Exception {
     byte[] bytes = new byte[100];
     ReverseEncoder encoder = new ReverseEncoder(bytes, 0, bytes.length);
-    encoder.writeUInt32NoTagClzDiv(value);
+    encoder.writeUInt32NoTag(value);
     int startIx = bytes.length - encoder.getTotalBytesWritten();
     return Arrays.copyOfRange(bytes, startIx, bytes.length);
   }
@@ -79,7 +79,7 @@ public class EncoderEquivalenceTest {
   private byte[] writeUInt64Reverse(long value) throws Exception {
     byte[] bytes = new byte[100];
     ReverseEncoder encoder = new ReverseEncoder(bytes, 0, bytes.length);
-    encoder.writeUInt64NoTagClzDiv(value);
+    encoder.writeUInt64NoTag(value);
     int startIx = bytes.length - encoder.getTotalBytesWritten();
     return Arrays.copyOfRange(bytes, startIx, bytes.length);
   }

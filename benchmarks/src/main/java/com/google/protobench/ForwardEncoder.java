@@ -194,38 +194,44 @@ final class ForwardEncoder implements Encoder {
     }
   }
 
+  private void writeUInt32NoTagUnsafe(int value) throws IOException {
+    long pos = ARRAY_BASE_OFFSET + position;
+    int spaceLeft = spaceLeft();
+    while (true) {
+      if (spaceLeft-- == 0) {
+        throw new OutOfSpaceException();
+      } else if ((value & ~0x7F) == 0) {
+        UNSAFE.putByte(buffer, pos, (byte) value);
+        position++;
+        return;
+      } else {
+        UNSAFE.putByte(buffer, pos++, (byte) ((value & 0x7F) | 0x80));
+        position++;
+        value >>>= 7;
+      }
+    }
+  }
+  private void writeUInt32NoTagSafe(int value) throws IOException {
+    int spaceLeft = spaceLeft();
+    while (true) {
+      if (spaceLeft-- == 0) {
+        throw new OutOfSpaceException();
+      } else if ((value & ~0x7F) == 0) {
+        buffer[position++] = (byte) value;
+        return;
+      } else {
+        buffer[position++] = (byte) ((value & 0x7F) | 0x80);
+        value >>>= 7;
+      }
+    }
+  }
   @Override
   public final void writeUInt32NoTag(int value) throws IOException {
-    /*if (HAS_UNSAFE_ARRAY_OPERATIONS && spaceLeft() >= MAX_VARINT_SIZE) {
-      long pos = ARRAY_BASE_OFFSET + position;
-      while (true) {
-        if ((value & ~0x7F) == 0) {
-          UNSAFE.putByte(buffer, pos, (byte) value);
-          position++;
-          return;
-        } else {
-          UNSAFE.putByte(buffer, pos++, (byte) ((value & 0x7F) | 0x80));
-          position++;
-          value >>>= 7;
-        }
-      }
-    } else {*/
-      try {
-        while (true) {
-          if ((value & ~0x7F) == 0) {
-            buffer[position++] = (byte) value;
-            return;
-          } else {
-            buffer[position++] = (byte) ((value & 0x7F) | 0x80);
-            value >>>= 7;
-          }
-        }
-      } catch (IndexOutOfBoundsException e) {
-        throw new OutOfSpaceException(
-                new IndexOutOfBoundsException(
-                        String.format("Pos: %d, limit: %d, len: %d", position, limit, 1)));
-      }
-    //}
+    if (HAS_UNSAFE_ARRAY_OPERATIONS) {
+      writeUInt32NoTagUnsafe(value);
+    } else {
+      writeUInt32NoTagSafe(value);
+    }
   }
 
   public final void writeFixed32NoTag(int value) throws IOException {
@@ -243,10 +249,13 @@ final class ForwardEncoder implements Encoder {
 
   @Override
   public final void writeUInt64NoTag(long value) throws IOException {
-    /*if (HAS_UNSAFE_ARRAY_OPERATIONS && spaceLeft() >= MAX_VARINT_SIZE) {
+    int spaceLeft = spaceLeft();
+    if (HAS_UNSAFE_ARRAY_OPERATIONS) {
       long pos = ARRAY_BASE_OFFSET + position;
       while (true) {
-        if ((value & ~0x7FL) == 0) {
+        if (spaceLeft-- == 0) {
+          throw new OutOfSpaceException();
+        } else if ((value & ~0x7FL) == 0) {
           UNSAFE.putByte(buffer, pos, (byte) value);
           position++;
           return;
@@ -256,10 +265,12 @@ final class ForwardEncoder implements Encoder {
           value >>>= 7;
         }
       }
-    } else {*/
+    } else {
       try {
         while (true) {
-          if ((value & ~0x7FL) == 0) {
+          if (spaceLeft-- == 0) {
+            throw new OutOfSpaceException();
+          } else if ((value & ~0x7FL) == 0) {
             buffer[position++] = (byte) value;
             return;
           } else {
@@ -272,7 +283,7 @@ final class ForwardEncoder implements Encoder {
                 new IndexOutOfBoundsException(
                         String.format("Pos: %d, limit: %d, len: %d", position, limit, 1)));
       }
-   // }
+    }
   }
 
   public final void writeFixed64NoTag(long value) throws IOException {

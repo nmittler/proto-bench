@@ -1,12 +1,12 @@
 package com.google.protobench;
 
+import static com.google.protobench.Utils.RANDOM;
+
 import benchmark.protobuf.UnittestProto;
 import benchmark.protostuff.NestedTestAllTypes;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 class TestMessage {
   int optionalInt;
@@ -28,13 +28,6 @@ class TestMessage {
   TestMessage[] children;
 
   private int serializedSize = -1;
-
-  public void clearCachedSerializedSize() {
-    serializedSize = -1;
-    for(int i = 0; i<children.length; ++i) {
-      children[i].clearCachedSerializedSize();
-    }
-  }
 
   public int getSerializedSize() {
     if (serializedSize == -1) {
@@ -194,20 +187,19 @@ class TestMessage {
     return nested.build();
   }
 
-  public static TestMessage newRandomInstance(Random r,
-                                              int depth,
+  public static TestMessage newRandomInstance(int depth,
                                               int stringLength,
                                               int numRepeatedFields,
                                               int treeHeight,
                                               int branchingFactor) {
     TestMessage info = new TestMessage();
-    info.optionalInt = r.nextInt();
-    info.optionalLong = r.nextLong();
-    info.optionalFloat = r.nextFloat();
-    info.optionalDouble = r.nextDouble();
-    info.optionalBoolean = r.nextBoolean();
-    info.optionalString = Utils.randomString(r, stringLength);
-    info.optionalBytes = Utils.randomString(r, stringLength).getBytes();
+    info.optionalInt = VarintInput.nextRandomIntValue();
+    info.optionalLong = VarintInput.nextRandomLongValue();
+    info.optionalFloat = RANDOM.nextFloat();
+    info.optionalDouble = RANDOM.nextDouble();
+    info.optionalBoolean = RANDOM.nextBoolean();
+    info.optionalString = Utils.randomString(stringLength);
+    info.optionalBytes = Utils.randomString(stringLength).getBytes();
 
     info.repeatedInt = new int[numRepeatedFields];
     info.repeatedLong = new long[numRepeatedFields];
@@ -218,19 +210,19 @@ class TestMessage {
     info.repeatedBytes = new byte[numRepeatedFields][];
 
     for (int i = 0; i < numRepeatedFields; ++i) {
-      info.repeatedInt[i] = r.nextInt();
-      info.repeatedLong[i] = r.nextLong();
-      info.repeatedFloat[i] = r.nextFloat();
-      info.repeatedDouble[i] = r.nextDouble();
-      info.repeatedBoolean[i] = r.nextBoolean();
-      info.repeatedString[i] = Utils.randomString(r, stringLength);
-      info.repeatedBytes[i] = Utils.randomString(r, stringLength).getBytes();
+      info.repeatedInt[i] = VarintInput.nextRandomIntValue();
+      info.repeatedLong[i] = VarintInput.nextRandomLongValue();
+      info.repeatedFloat[i] = RANDOM.nextFloat();
+      info.repeatedDouble[i] = RANDOM.nextDouble();
+      info.repeatedBoolean[i] = RANDOM.nextBoolean();
+      info.repeatedString[i] = Utils.randomString(stringLength);
+      info.repeatedBytes[i] = Utils.randomString(stringLength).getBytes();
     }
 
     if (depth <= treeHeight) {
       info.children = new TestMessage[branchingFactor];
       for (int branch = 0; branch < branchingFactor; ++branch) {
-        info.children[branch] = newRandomInstance(r, depth + 1, stringLength, numRepeatedFields,
+        info.children[branch] = newRandomInstance(depth + 1, stringLength, numRepeatedFields,
                 treeHeight, branchingFactor);
       }
     }

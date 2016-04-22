@@ -5,13 +5,15 @@ import com.google.protobuf.MessageLite;
 import java.util.Random;
 
 public final class Utils {
+  static final Random RANDOM = new Random(100);
+
   private Utils() {
   }
 
-  static String randomString(Random r, int size) {
+  static String randomString(int size) {
     StringBuilder builder = new StringBuilder(size);
     for (int i = 0; i < size; ++i) {
-      builder.append((char) (r.nextInt('z' - 'a') + 'a'));
+      builder.append((char) (RANDOM.nextInt('z' - 'a') + 'a'));
     }
     return builder.toString();
   }
@@ -85,7 +87,7 @@ public final class Utils {
     return computeLengthDelimitedFieldSize(length);
   }
 
-  static int computeUInt32SizeNoTag(final int value) {
+  static byte computeUInt32SizeNoTag(final int value) {
     if ((value & (~0 << 7)) == 0) {
       return 1;
     }
@@ -101,27 +103,56 @@ public final class Utils {
     return 5;
   }
 
-  static int computeUInt64SizeNoTag(long value) {
+  static byte computeUInt64SizeNoTag(long value) {
     // handle two popular special cases up front ...
     if ((value & (~0L << 7)) == 0L) {
+      // Byte 1
       return 1;
     }
     if (value < 0L) {
+      // Byte 10
       return 10;
     }
     // ... leaving us with 8 remaining, which we can divide and conquer
-    int n = 2;
+    byte n = 2;
     if ((value & (~0L << 35)) != 0L) {
-      n += 4;
+      // Byte 6-9
+      n += 4;// + (value >>> 63);
       value >>>= 28;
     }
     if ((value & (~0L << 21)) != 0L) {
+      // Byte 4-5 or 8-9
       n += 2;
       value >>>= 14;
     }
     if ((value & (~0L << 14)) != 0L) {
+      // Byte 3 or 7
       n += 1;
     }
     return n;
+
+    // handle two popular special cases up front ...
+    /*if ((value & (~0L << 7)) == 0L) {
+      return 1;
+    }
+    // ... leaving us with 8 remaining, which we can divide and conquer
+    int n = 2;
+    // Assume byte 3-5
+    int intValue = ((int) (value >>> 14)) & 0x1FFFFF;
+    if ((value & (~0L << 35)) != 0L) {
+      // Byte 6-10
+      // Adding an extra byte if the sign bit is set.
+      n += 4 + (value >>> 63);
+      intValue = ((int)(value >>> 42)) & 0x1FFFFF;
+    }
+    if ((intValue & ~0x7F) != 0L) {
+      // Bytes 4-5 or 8-9
+      n += 2;
+      intValue >>>= 14;
+    }
+    if ((intValue & 0x7F) != 0L) {
+      n += 1;
+    }
+    return n;*/
   }
 }

@@ -1,6 +1,8 @@
 package com.google.protobench;
 
-import org.junit.Assert;
+import static com.google.protobench.UnsafeUtil.ARRAY_BASE_OFFSET;
+import static com.google.protobench.UnsafeUtil.HAS_UNSAFE_ARRAY_OPERATIONS;
+import static com.google.protobench.UnsafeUtil.UNSAFE;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -10,7 +12,7 @@ final class ReverseEncoder implements Encoder {
   private final byte[] buffer;
   private final int offset;
   private final int limit;
-  private final int varint32Min;
+  private final int offsetMinusOne;
   private int position;
 
   ReverseEncoder(byte[] buffer, int offset, int length) {
@@ -25,6 +27,7 @@ final class ReverseEncoder implements Encoder {
     this.buffer = buffer;
     this.offset = offset;
     limit = offset + length;
+    offsetMinusOne = offset - 1;
     varint32Min = offset + 4;
     reset();
   }
@@ -258,7 +261,7 @@ final class ReverseEncoder implements Encoder {
   private static final long[] ABOVE_MASKS_64 = new long[64];
   private static final long[] BELOW_MASKS_64 = new long[64];
   private static final byte[] LEADING_ZEROS_TO_BYTES_32 = new byte[33];
-  private static final int[] LEADING_ZEROS_TO_BYTES_64 = new int[65];
+  private static final byte[] LEADING_ZEROS_TO_BYTES_64 = new byte[65];
   static {
     for (int i=0; i<10; ++i) {
       int shift = i * 7;
@@ -285,15 +288,47 @@ final class ReverseEncoder implements Encoder {
     LEADING_ZEROS_TO_BYTES_32[32] = 1;
     for(int i = 0, maxLeadingZeros = 0, numBytes = 10; numBytes > 0 && maxLeadingZeros < 64; --numBytes, maxLeadingZeros += 7) {
       for (; i <= maxLeadingZeros; ++i) {
-        LEADING_ZEROS_TO_BYTES_64[i] = numBytes;
+        LEADING_ZEROS_TO_BYTES_64[i] = (byte) numBytes;
       }
     }
     LEADING_ZEROS_TO_BYTES_64[64] = 1;
     System.out.println("done.");
   }
-  final void writeUInt32NoTagCalc(int value) throws IOException {
+
+  private void writeUInt32NoTagCalcUnsafe(int value) throws IOException {
+    final byte size = Utils.computeUInt32SizeNoTag(value);
+    if (position - size < offsetMinusOne) {
+      throw new OutOfSpaceException();
+    }
+
+    long pos = ARRAY_BASE_OFFSET + position;
+    position -= size;
     int sign = 0;
-    switch(Utils.computeUInt32SizeNoTag(value)) {
+    switch (size) {
+      case 5:
+        UNSAFE.putByte(buffer, pos--, (byte) (value >>> 28));
+        sign = 0x80;
+      case 4:
+        UNSAFE.putByte(buffer, pos--, (byte) (((value >>> 21) & 0x7F) | sign));
+        sign = 0x80;
+      case 3:
+        UNSAFE.putByte(buffer, pos--, (byte) (((value >>> 14) & 0x7F) | sign));
+        sign = 0x80;
+      case 2:
+        UNSAFE.putByte(buffer, pos--, (byte) (((value >>> 7) & 0x7F) | sign));
+        sign = 0x80;
+      case 1:
+        UNSAFE.putByte(buffer, pos, (byte) ((value & 0x7F) | sign));
+    }
+  }
+
+  private void writeUInt32NoTagCalcSafe(int value) throws IOException {
+    final byte size = Utils.computeUInt32SizeNoTag(value);
+    if (position - size < offsetMinusOne) {
+      throw new OutOfSpaceException();
+    }
+    int sign = 0;
+    switch (size) {
       case 5:
         buffer[position--] = (byte) (value >>> 28);
         sign = 0x80;
@@ -310,6 +345,15 @@ final class ReverseEncoder implements Encoder {
         buffer[position--] = (byte) ((value & 0x7F) | sign);
     }
   }
+
+  final void writeUInt32NoTagCalc(int value) throws IOException {
+    if(HAS_UNSAFE_ARRAY_OPERATIONS) {
+      writeUInt32NoTagCalcUnsafe(value);
+    } else {
+      writeUInt32NoTagCalcSafe(value);
+    }
+  }
+
   final void writeUInt32NoTagClzIndex(int value) throws IOException {
     int sign = 0;
     switch(LEADING_ZEROS_TO_BYTES_32[Integer.numberOfLeadingZeros(value)]) {
@@ -350,88 +394,7 @@ final class ReverseEncoder implements Encoder {
   }
   @Override
   public final void writeUInt32NoTag(int value) throws IOException {
-    /*if ((value & ~0x7F) == 0) {
-      buffer[position--] = (byte) value;
-      return;
-    }
-    if ((value & (~0x7F << 7)) == 0) {
-      buffer[position--] = (byte) (value >>> 7);
-      buffer[position--] = (byte) ((value & 0x7F) | 0x80);
-      return;
-    }
-    if ((value & (~0x7F << 14)) == 0) {
-      buffer[position--] = (byte) (value >>> 14);
-      buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
-      buffer[position--] = (byte) ((value & 0x7F) | 0x80);
-      return;
-    }
-    largeWriteUInt32NoTag(value);
-  }
-
-  private void largeWriteUInt32NoTag(int value) throws IOException {*/
-    /*position -= LEADING_ZEROS_TO_BYTES_32[Integer.numberOfLeadingZeros(value)];
-    int pos = position + 1;
-    try {
-      while (true) {
-        if ((value & ~0x7F) == 0) {
-          buffer[pos] = (byte) value;
-          return;
-        } else {
-          buffer[pos++] = (byte) ((value & 0x7F) | 0x80);
-          value >>>= 7;
-        }
-      }
-    } catch (IndexOutOfBoundsException e) {
-      throw new OutOfSpaceException(
-              new IndexOutOfBoundsException(
-                      String.format("Pos: %d, limit: %d, len: %d", position, limit, 1)));
-    }*/
-
     writeUInt32NoTagCalc(value);
-
-    /*if ((value & ~0x7F) == 0) {
-      buffer[position--] = (byte) value;
-      return;
-    }
-    if ((value & (~0x7F << 7)) == 0) {
-      buffer[position--] = (byte) (value >>> 7);
-      buffer[position--] = (byte) ((value & 0x7F) | 0x80);
-      return;
-    }
-    if ((value & (~0x7F << 14)) == 0) {
-      buffer[position--] = (byte) (value >>> 14);
-      buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
-      buffer[position--] = (byte) ((value & 0x7F) | 0x80);
-      return;
-    }*/
-    /*if ((value & (~0x7F << 21)) == 0) {
-      buffer[position--] = (byte) (value >>> 21);
-      buffer[position--] = (byte) (((value >>> 14) & 0x7F) | 0x80);
-      buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
-      buffer[position--] = (byte) ((value & 0x7F) | 0x80);
-      return;
-    }
-    if ((value & (~0x7F << 28)) == 0) {
-      buffer[position--] = (byte) (value >>> 28);
-      buffer[position--] = (byte) (((value >>> 21) & 0x7F) | 0x80);
-      buffer[position--] = (byte) (((value >>> 14) & 0x7F) | 0x80);
-      buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
-      buffer[position--] = (byte) ((value & 0x7F) | 0x80);
-      return;
-    }*/
-
-    /*int shift = 21; // Shift for the 4th byte.
-    while (true) {
-      if ((value & ABOVE_MASKS_32[shift]) == 0) {
-        buffer[position--] = (byte) (value >>> shift);
-        do {
-          shift -= 7;
-          buffer[position--] = (byte) (((value >>> shift) & 0x7F) | 0x80);
-        } while (shift > 0);
-        return;
-      }
-      shift += 7;
-    }*/
   }
 
   public final void writeFixed32NoTag(int value) throws IOException {
@@ -448,38 +411,203 @@ final class ReverseEncoder implements Encoder {
   }
 
   final void writeUInt64NoTagCalc(long value) throws IOException {
-    int sign = 0;
-    switch (Utils.computeUInt64SizeNoTag(value)) {
-      case 10:
-        buffer[position--] = (byte) ((value >>> 63) | sign);
-        sign = 0x80;
-      case 9:
-        buffer[position--] = (byte) (((value >>> 56) & 0x7F) | sign);
-        sign = 0x80;
-      case 8:
-        buffer[position--] = (byte) (((value >>> 49) & 0x7F) | sign);
-        sign = 0x80;
-      case 7:
-        buffer[position--] = (byte) (((value >>> 42) & 0x7F) | sign);
-        sign = 0x80;
-      case 6:
-        buffer[position--] = (byte) (((value >>> 35) & 0x7F) | sign);
-        sign = 0x80;
-      case 5:
-        buffer[position--] = (byte) (((value >>> 28) & 0x7F) | sign);
-        sign = 0x80;
-      case 4:
-        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | sign);
-        sign = 0x80;
-      case 3:
-        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | sign);
-        sign = 0x80;
-      case 2:
-        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | sign);
-        sign = 0x80;
-      case 1:
-        buffer[position--] = (byte) ((value & 0x7F) | sign);
+    //int sign = 0;
+    //position -= Utils.computeUInt64SizeNoTag(value);
+    int size = Utils.computeUInt64SizeNoTag(value);
+    if (HAS_UNSAFE_ARRAY_OPERATIONS) {
+      position -= size;
+      if (position < offsetMinusOne) {
+        throw new OutOfSpaceException();
+      }
+      long pos = ARRAY_BASE_OFFSET + position + 1;
+      while (true) {
+        if (size-- == 1) {
+          UNSAFE.putByte(buffer, pos, (byte) value);
+          return;
+        } else {
+          UNSAFE.putByte(buffer, pos++, (byte) (((int) value & 0x7F) | 0x80));
+          value >>>= 7;
+        }
+      }
+    } else {
+      position -= size;
+      if (position < offsetMinusOne) {
+        throw new OutOfSpaceException();
+      }
+      int pos = position + 1;
+      while (true) {
+        if (size-- == 1) {
+          buffer[pos] = (byte) value;
+          return;
+        } else {
+          buffer[pos++] = (byte) (((int) value & 0x7F) | 0x80);
+          value >>>= 7;
+        }
+      }
     }
+    /*int pos = position + 1;
+    while (true) {
+      if ((value & ~0x7FL) == 0) {
+        buffer[pos] = (byte) value;
+        return;
+      } else {
+        buffer[pos++] = (byte) (((int) value & 0x7F) | 0x80);
+        value >>>= 7;
+      }
+    }*/
+    /*switch (Utils.computeUInt64SizeNoTag(value)) {
+      case 1:
+        buffer[position--] = (byte) ((value & 0x7F));
+        break;
+      case 2:
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F));
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 3:
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F));
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 4:
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F));
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 5:
+        buffer[position--] = (byte) (((value >>> 28) & 0x7F));
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 6:
+        buffer[position--] = (byte) (((value >>> 35) & 0x7F));
+        buffer[position--] = (byte) (((value >>> 28) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 7:
+        buffer[position--] = (byte) (((value >>> 42) & 0x7F));
+        buffer[position--] = (byte) (((value >>> 35) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 28) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 8:
+        buffer[position--] = (byte) (((value >>> 49) & 0x7F));
+        buffer[position--] = (byte) (((value >>> 42) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 35) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 28) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 9:
+        buffer[position--] = (byte) (((value >>> 56) & 0x7F));
+        buffer[position--] = (byte) (((value >>> 49) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 42) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 35) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 28) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 10:
+        buffer[position--] = (byte) ((value >>> 63));
+        buffer[position--] = (byte) (((value >>> 56) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 49) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 42) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 35) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 28) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+    }*/
+    /*switch (Utils.computeUInt64SizeNoTag(value)) {
+      case 10:
+        buffer[position--] = (byte) ((value >>> 63));
+        buffer[position--] = (byte) (((value >>> 56) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 49) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 42) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 35) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 28) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 9:
+        buffer[position--] = (byte) (((value >>> 56) & 0x7F));
+        buffer[position--] = (byte) (((value >>> 49) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 42) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 35) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 28) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 8:
+        buffer[position--] = (byte) (((value >>> 49) & 0x7F));
+        buffer[position--] = (byte) (((value >>> 42) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 35) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 28) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 7:
+        buffer[position--] = (byte) (((value >>> 42) & 0x7F));
+        buffer[position--] = (byte) (((value >>> 35) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 28) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 6:
+        buffer[position--] = (byte) (((value >>> 35) & 0x7F));
+        buffer[position--] = (byte) (((value >>> 28) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 5:
+        buffer[position--] = (byte) (((value >>> 28) & 0x7F));
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 4:
+        buffer[position--] = (byte) (((value >>> 21) & 0x7F));
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F) | 0x80);
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 3:
+        buffer[position--] = (byte) (((value >>> 14) & 0x7F));
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F) | 0x80);
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 2:
+        buffer[position--] = (byte) (((value >>> 7) & 0x7F));
+        buffer[position--] = (byte) ((value & 0x7F) | 0x80);
+        break;
+      case 1:
+        buffer[position--] = (byte) ((value & 0x7F));
+    }*/
   }
 
   final void writeUInt64NoTagClzIndex(long value) throws IOException {
@@ -649,7 +777,7 @@ final class ReverseEncoder implements Encoder {
   }
 
   public final int spaceLeft() {
-    return (position - offset) + 1;
+    return position - offsetMinusOne;
   }
 
   @Override

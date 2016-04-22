@@ -19,8 +19,6 @@ import java.util.Random;
 @State(Scope.Benchmark)
 @Fork(1)
 public class EncodingAlgorithmBenchmark {
-  private static final Random RANDOM = new Random();
-  private static final int NUM_MESSAGES = 500;
   private static final int STRING_LENGTH = 50;
   private static final int NUM_REPEATED_FIELDS = 20;
   private static final int TREE_HEIGHT = 2;
@@ -35,22 +33,12 @@ public class EncodingAlgorithmBenchmark {
   private Direction direction;
 
   private Encoder encoder;
-  private byte[] output;
-  TestMessage[] messages;
-  private int messageIndex;
+  private byte[] output = new byte[1024 * 1024];
+  private TestMessage message = TestMessage.newRandomInstance(0, STRING_LENGTH, NUM_REPEATED_FIELDS,
+          TREE_HEIGHT, BRANCHING_FACTOR);
 
   @Setup
   public void setUp() throws Exception {
-
-    messages = new TestMessage[NUM_MESSAGES];
-    for (int i = 0; i < NUM_MESSAGES; ++i) {
-      messages[i] = TestMessage.newRandomInstance(RANDOM, 0, STRING_LENGTH, NUM_REPEATED_FIELDS,
-              TREE_HEIGHT, BRANCHING_FACTOR);
-    }
-    messageIndex = 0;
-
-    output = new byte[1024 * 1024];
-
     switch (direction) {
       case FORWARD:
         encoder = new ForwardEncoder(output, 0, output.length);
@@ -63,20 +51,7 @@ public class EncodingAlgorithmBenchmark {
 
   @Benchmark
   public void encode() throws Exception {
-    encoder.encodeMessageNoTag(nextMessage());
+    encoder.encodeMessageNoTag(message);
     encoder.reset();
-  }
-
-  private TestMessage nextMessage() {
-    TestMessage info = messages[messageIndex];
-    messageIndex = (messageIndex + 1) % NUM_MESSAGES;
-    return info;
-  }
-
-  public static void main(String[] args) throws Exception {
-    EncodingAlgorithmBenchmark bm = new EncodingAlgorithmBenchmark();
-    bm.direction = Direction.REVERSE;
-    bm.setUp();
-    bm.encode();
   }
 }

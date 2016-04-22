@@ -3,12 +3,14 @@ package com.google.protobench;
 import sun.misc.Unsafe;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 
 public class UnsafeUtil {
   static final sun.misc.Unsafe UNSAFE = getUnsafe();
   static final boolean HAS_UNSAFE_ARRAY_OPERATIONS = supportsUnsafeArrayOperations();
+  static final boolean HAS_UNALIGNED_ACCESS = supportsUnalignedAccess();
   static final long ARRAY_BASE_OFFSET = byteArrayBaseOffset();
 
 
@@ -55,6 +57,24 @@ public class UnsafeUtil {
         supported = true;
       } catch (Throwable e) {
         // Do nothing.
+      }
+    }
+    return supported;
+  }
+
+  private static boolean supportsUnalignedAccess() {
+    boolean supported = false;
+    if (UNSAFE != null) {
+      try {
+        Class<?> bitsClass = Class.forName("java.nio.Bits", false, ClassLoader.getSystemClassLoader());
+        Method unalignedMethod = bitsClass.getDeclaredMethod("unaligned");
+        unalignedMethod.setAccessible(true);
+        supported = Boolean.TRUE.equals(unalignedMethod.invoke(null));
+      } catch (Throwable t) {
+        // We at least know x86 and x64 support unaligned access.
+        String arch = System.getProperty("os.arch");
+        //noinspection DynamicRegexReplaceableByCompiledPattern
+        supported = arch.matches("^(i[3-6]86|x86(_64)?|x64|amd64)$");
       }
     }
     return supported;

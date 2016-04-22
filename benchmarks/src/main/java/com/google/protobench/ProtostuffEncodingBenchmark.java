@@ -44,7 +44,7 @@ public class ProtostuffEncodingBenchmark {
 
     messages = new TestMessage[NUM_MESSAGES];
     for (int i = 0; i < NUM_MESSAGES; ++i) {
-      messages[i] = TestMessage.newRandomInstance(RANDOM, 0, STRING_LENGTH, NUM_REPEATED_FIELDS,
+      messages[i] = TestMessage.newRandomInstance(0, STRING_LENGTH, NUM_REPEATED_FIELDS,
               TREE_HEIGHT, BRANCHING_FACTOR);
     }
     messageIndex = 0;
