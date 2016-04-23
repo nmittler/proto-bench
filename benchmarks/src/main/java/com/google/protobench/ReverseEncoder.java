@@ -28,7 +28,6 @@ final class ReverseEncoder implements Encoder {
     this.offset = offset;
     limit = offset + length;
     offsetMinusOne = offset - 1;
-    varint32Min = offset + 4;
     reset();
   }
 

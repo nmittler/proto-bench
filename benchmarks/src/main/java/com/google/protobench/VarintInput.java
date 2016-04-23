@@ -81,23 +81,25 @@ public enum VarintInput {
       case 5:
         return I64_5.nextLongValue();
       case 6:
-        return I64_1.nextLongValue();
+        return I64_6.nextLongValue();
       case 7:
-        return I64_2.nextLongValue();
+        return I64_7.nextLongValue();
       case 8:
-        return I64_3.nextLongValue();
+        return I64_8.nextLongValue();
       case 9:
-        return I64_4.nextLongValue();
+        return I64_9.nextLongValue();
       default:
-        return I64_5.nextLongValue();
+        return I64_10.nextLongValue();
     }
   }
 
   // TODO(nmittler): Consider using more realistic distributions based on data analysis.
   private static final EnumeratedIntegerDistribution varint32Distribution = new EnumeratedIntegerDistribution(
+          Utils.RANDOM,
           new int[]{1, 2, 3, 4, 5},
           new double[]{0.3, 0.2, 0.2, 0.1, 0.2});
   private static final EnumeratedIntegerDistribution varint64Distribution = new EnumeratedIntegerDistribution(
+          Utils.RANDOM,
           new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
           new double[]{0.2, 0.1, 0.1, 0.5, 0.5, 0.5, 0.5, 0.1, 0.1, 0.2});
 }

@@ -1,11 +1,10 @@
 package com.google.protobench;
 
-import com.google.protobuf.MessageLite;
-
-import java.util.Random;
+import org.apache.commons.math3.random.RandomGenerator;
+import org.apache.commons.math3.random.Well19937c;
 
 public final class Utils {
-  static final Random RANDOM = new Random(100);
+  static final RandomGenerator RANDOM = new Well19937c(100);
 
   private Utils() {
   }
