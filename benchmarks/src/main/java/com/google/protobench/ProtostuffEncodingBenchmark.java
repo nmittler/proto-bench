@@ -1,5 +1,6 @@
 package com.google.protobench;
 
+import com.google.protobench.TestMessage.SerializedSizeManager;
 import com.google.protobuf.CodedOutputStream;
 
 import io.protostuff.LinkedBuffer;
@@ -19,7 +20,6 @@ import java.util.Random;
 @State(Scope.Benchmark)
 @Fork(1)
 public class ProtostuffEncodingBenchmark {
-  private static final Random RANDOM = new Random();
   private static final int NUM_MESSAGES = 500;
   private static final int STRING_LENGTH = 50;
   private static final int NUM_REPEATED_FIELDS = 20;
@@ -43,9 +43,11 @@ public class ProtostuffEncodingBenchmark {
   public void setUp() throws Exception {
 
     messages = new TestMessage[NUM_MESSAGES];
+    SerializedSizeManager sizeManager = new SerializedSizeManager(
+                    NUM_MESSAGES * Utils.calcNodesInTree(BRANCHING_FACTOR, TREE_HEIGHT));
     for (int i = 0; i < NUM_MESSAGES; ++i) {
       messages[i] = TestMessage.newRandomInstance(0, STRING_LENGTH, NUM_REPEATED_FIELDS,
-              TREE_HEIGHT, BRANCHING_FACTOR);
+              TREE_HEIGHT, BRANCHING_FACTOR, sizeManager);
     }
     messageIndex = 0;
 

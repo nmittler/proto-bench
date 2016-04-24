@@ -6,9 +6,10 @@ import benchmark.protobuf.UnittestProto;
 import benchmark.protostuff.NestedTestAllTypes;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
-class TestMessage {
+final class TestMessage {
   int optionalInt;
   long optionalLong;
   float optionalFloat;
@@ -27,9 +28,43 @@ class TestMessage {
 
   TestMessage[] children;
 
-  private int serializedSize = -1;
+  private final SerializedSizeManager sizeManager;
+  private final int sizeIndex;
+
+  private TestMessage(SerializedSizeManager sizeManager) {
+    this.sizeManager = sizeManager;
+    this.sizeIndex = sizeManager.nextIndex();
+  }
+
+  TestMessage shallowCopy() {
+    TestMessage copy = new TestMessage(sizeManager);
+    copy.optionalInt = optionalInt;
+    copy.optionalLong = optionalLong;
+    copy.optionalFloat = optionalFloat;
+    copy.optionalDouble = optionalDouble;
+    copy.optionalBoolean = optionalBoolean;
+    copy.optionalString = optionalString;
+    copy.optionalBytes = optionalBytes;
+
+    copy.repeatedInt = repeatedInt;
+    copy.repeatedLong = repeatedLong;
+    copy.repeatedFloat = repeatedFloat;
+    copy.repeatedDouble = repeatedDouble;
+    copy.repeatedBoolean = repeatedBoolean;
+    copy.repeatedString = repeatedString;
+    copy.repeatedBytes = repeatedBytes;
+
+    if (children != null) {
+      copy.children = new TestMessage[children.length];
+      for (int i = 0; i < children.length; ++i) {
+        copy.children[i] = children[i].shallowCopy();
+      }
+    }
+    return copy;
+  }
 
   public int getSerializedSize() {
+    int serializedSize = sizeManager.getSerializedSize(sizeIndex);
     if (serializedSize == -1) {
       int size = 0;
       size += Utils.computeUInt32Size(3, optionalInt);
@@ -112,7 +147,8 @@ class TestMessage {
           size += 2 * repeatedBytes.length;
         }
       }
-      this.serializedSize = size;
+      serializedSize = size;
+      sizeManager.setSerializedSize(sizeIndex, serializedSize);
     }
 
     return serializedSize;
@@ -191,8 +227,9 @@ class TestMessage {
                                               int stringLength,
                                               int numRepeatedFields,
                                               int treeHeight,
-                                              int branchingFactor) {
-    TestMessage info = new TestMessage();
+                                              int branchingFactor,
+                                              SerializedSizeManager sizeManager) {
+    TestMessage info = new TestMessage(sizeManager);
     info.optionalInt = VarintInput.nextRandomIntValue();
     info.optionalLong = VarintInput.nextRandomLongValue();
     info.optionalFloat = RANDOM.nextFloat();
@@ -219,13 +256,41 @@ class TestMessage {
       info.repeatedBytes[i] = Utils.randomString(stringLength).getBytes();
     }
 
-    if (depth <= treeHeight) {
+    if (depth < treeHeight) {
       info.children = new TestMessage[branchingFactor];
       for (int branch = 0; branch < branchingFactor; ++branch) {
         info.children[branch] = newRandomInstance(depth + 1, stringLength, numRepeatedFields,
-                treeHeight, branchingFactor);
+                treeHeight, branchingFactor, sizeManager);
       }
     }
     return info;
+  }
+
+  final static class SerializedSizeManager {
+    private final int[] sizes;
+    private int nextIndex;
+
+    SerializedSizeManager(int size) {
+      sizes = new int[size];
+    }
+
+    int getSerializedSize(int index) {
+      return sizes[index];
+    }
+
+    void setSerializedSize(int index, int value) {
+      sizes[index] = value;
+    }
+
+    int nextIndex() {
+      if (nextIndex >= sizes.length) {
+        throw new IndexOutOfBoundsException("sizes.length=" + sizes.length + ", nextIndex=" + nextIndex);
+      }
+      return nextIndex++;
+    }
+
+    void clearAll() {
+      Arrays.fill(sizes, -1);
+    }
   }
 }

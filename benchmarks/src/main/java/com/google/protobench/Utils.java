@@ -9,6 +9,14 @@ public final class Utils {
   private Utils() {
   }
 
+  static int calcNodesInTree(int branchingFactor, int treeHight) {
+    int total = 0;
+    while(treeHight >= 0) {
+      total += Math.pow(branchingFactor, treeHight--);
+    }
+    return total;
+  }
+
   static String randomString(int size) {
     StringBuilder builder = new StringBuilder(size);
     for (int i = 0; i < size; ++i) {
