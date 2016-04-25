@@ -3,7 +3,6 @@ package com.google.protobench;
 import static com.google.protobench.UnsafeUtil.ARRAY_BASE_OFFSET;
 import static com.google.protobench.UnsafeUtil.HAS_UNSAFE_ARRAY_OPERATIONS;
 import static com.google.protobench.UnsafeUtil.UNSAFE;
-import static com.google.protobench.WireFormat.MAX_VARINT_SIZE;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -330,10 +329,6 @@ final class ForwardEncoder implements Encoder {
     }
   }
 
-  public final void writeLazy(ByteBuffer value) throws IOException {
-    write(value);
-  }
-
   public final void writeStringNoTag(String value) throws IOException {
     final int oldPosition = position;
     try {
@@ -365,10 +360,6 @@ final class ForwardEncoder implements Encoder {
     } catch (IndexOutOfBoundsException e) {
       throw new OutOfSpaceException(e);
     }
-  }
-
-  public void flush() {
-    // Do nothing.
   }
 
   public final int spaceLeft() {

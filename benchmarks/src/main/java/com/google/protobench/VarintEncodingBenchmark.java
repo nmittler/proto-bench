@@ -30,51 +30,21 @@ public class VarintEncodingBenchmark {
         e.reset();
       }
     }),
-    REVERSE_CALC(new DirectionEncoder() {
+    REVERSE(new DirectionEncoder() {
       private final ReverseEncoder e = new ReverseEncoder(new byte[100], 0, 100);
       @Override
       void writeUInt32(int value) throws IOException {
-        e.writeUInt32NoTagCalc(value);
+        e.writeUInt32NoTag(value);
       }
       @Override
       void writeUInt64(long value) throws IOException {
-        e.writeUInt64NoTagCalc(value);
+        e.writeUInt64NoTag(value);
       }
       @Override
       void reset() {
         e.reset();
       }
-    }),
-    REVERSE_CLZ_INDEX(new DirectionEncoder() {
-      private final ReverseEncoder e = new ReverseEncoder(new byte[100], 0, 100);
-      @Override
-      void writeUInt32(int value) throws IOException {
-        e.writeUInt32NoTagClzIndex(value);
-      }
-      @Override
-      void writeUInt64(long value) throws IOException {
-        e.writeUInt64NoTagClzIndex(value);
-      }
-      @Override
-      void reset() {
-        e.reset();
-      }
-    }),
-    REVERSE_CLZ_DIV(new DirectionEncoder() {
-      private final ReverseEncoder e = new ReverseEncoder(new byte[100], 0, 100);
-      @Override
-      void writeUInt32(int value) throws IOException {
-        e.writeUInt32NoTagClzDiv(value);
-      }
-      @Override
-      void writeUInt64(long value) throws IOException {
-        e.writeUInt64NoTagClzDiv(value);
-      }
-      @Override
-      void reset() {
-        e.reset();
-      }
-    });;
+    });
 
     Algorithm(DirectionEncoder encoder) {
       this.encoder = encoder;

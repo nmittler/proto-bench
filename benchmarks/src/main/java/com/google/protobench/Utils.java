@@ -3,6 +3,8 @@ package com.google.protobench;
 import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.commons.math3.random.Well19937c;
 
+import java.math.BigInteger;
+
 public final class Utils {
   static final RandomGenerator RANDOM = new Well19937c(100);
 
@@ -133,29 +135,38 @@ public final class Utils {
       n += 1;
     }
     return n;
+  }
 
-    // handle two popular special cases up front ...
-    /*if ((value & (~0L << 7)) == 0L) {
-      return 1;
+  private static final byte[] LEADING_ZEROS_TO_BYTES_32 = new byte[33];
+  private static final byte[] LEADING_ZEROS_TO_BYTES_64 = new byte[65];
+  static {
+    for(int i = 0, maxLeadingZeros = 3, numBytes = 5; numBytes > 0 && maxLeadingZeros < 32; --numBytes, maxLeadingZeros += 7) {
+      for (; i <= maxLeadingZeros; ++i) {
+        LEADING_ZEROS_TO_BYTES_32[i] = (byte) numBytes;
+      }
     }
-    // ... leaving us with 8 remaining, which we can divide and conquer
-    int n = 2;
-    // Assume byte 3-5
-    int intValue = ((int) (value >>> 14)) & 0x1FFFFF;
-    if ((value & (~0L << 35)) != 0L) {
-      // Byte 6-10
-      // Adding an extra byte if the sign bit is set.
-      n += 4 + (value >>> 63);
-      intValue = ((int)(value >>> 42)) & 0x1FFFFF;
+    LEADING_ZEROS_TO_BYTES_32[32] = 1;
+    for(int i = 0, maxLeadingZeros = 0, numBytes = 10; numBytes > 0 && maxLeadingZeros < 64; --numBytes, maxLeadingZeros += 7) {
+      for (; i <= maxLeadingZeros; ++i) {
+        LEADING_ZEROS_TO_BYTES_64[i] = (byte) numBytes;
+      }
     }
-    if ((intValue & ~0x7F) != 0L) {
-      // Bytes 4-5 or 8-9
-      n += 2;
-      intValue >>>= 14;
-    }
-    if ((intValue & 0x7F) != 0L) {
-      n += 1;
-    }
-    return n;*/
+    LEADING_ZEROS_TO_BYTES_64[64] = 1;
+  }
+
+  static byte computeUInt32SizeNoTagClzIndex(final int value) {
+    return LEADING_ZEROS_TO_BYTES_32[Integer.numberOfLeadingZeros(value)];
+  }
+
+  static byte computeUInt32SizeNoTagClzDiv(final int value) {
+    return (byte) ((((32 - Integer.numberOfLeadingZeros(value)) - 1) / 7) + 1);
+  }
+
+  static byte computeUInt64SizeNoTagClzIndex(final long value) {
+    return LEADING_ZEROS_TO_BYTES_64[Long.numberOfLeadingZeros(value)];
+  }
+
+  static byte computeUInt64SizeNoTagClzDiv(final long value) {
+    return (byte) ((((64 - Long.numberOfLeadingZeros(value)) - 1) / 7) + 1);
   }
 }

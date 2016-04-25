@@ -3,41 +3,48 @@ package com.google.protobench;
 import org.apache.commons.math3.distribution.EnumeratedIntegerDistribution;
 
 public enum VarintInput {
-  I32_1(new int[]{0, 50, 100, 127}),
-  I32_2(new int[]{128, 500, 10000, 16383}),
-  I32_3(new int[]{16384, 50000, 1000000, 2097151}),
-  I32_4(new int[]{2097152, 10000000, 200000000, 268435455}),
-  I32_5(new int[]{268435456, 0x30000000, 0x7FFFFFFF, 0xFFFFFFFF}),
-  I64_1(new long[]{0, 50, 100, 127}),
-  I64_2(new long[]{128, 500, 10000, 16383}),
-  I64_3(new long[]{16384, 50000, 1000000, 2097151}),
-  I64_4(new long[]{2097152, 10000000, 200000000, 268435455}),
-  I64_5(new long[]{268435456, 0x30000000, 0x7FFFFFFF, 34359738367L}),
-  I64_6(new long[]{34359738368L, 2000000000000L, 4000000000000L, 4398046511103L}),
-  I64_7(new long[]{4398046511104L, 200000000000000L, 500000000000000L, 562949953421311L}),
-  I64_8(new long[]{0x4000000000000L, 0x5000000000000L, 0x6000000000000L, 0x1FFFFFFFFFFFFFEL}),
-  I64_9(new long[]{0x1FFFFFFFFFFFFFFL, 0x3FFFFFFFFFFFFFFFL, 0x5FFFFFFFFFFFFFFL, 0x7FFFFFFFFFFFFFFFL}),
-  I64_10(new long[]{0xFFFFFFFFFFFFFFFFL, 0xFFFFFFFFFFFFFFFFL, 0xFFFFFFFFFFFFFFFFL, 0xFFFFFFFFFFFFFFFFL});
+  I32_1((byte) 1, new int[]{0, 50, 100, 127}),
+  I32_2((byte) 2, new int[]{128, 500, 10000, 16383}),
+  I32_3((byte) 3, new int[]{16384, 50000, 1000000, 2097151}),
+  I32_4((byte) 4, new int[]{2097152, 10000000, 200000000, 268435455}),
+  I32_5((byte) 5, new int[]{268435456, 0x30000000, 0x7FFFFFFF, 0xFFFFFFFF}),
+  I64_1((byte) 1, new long[]{0, 50, 100, 127}),
+  I64_2((byte) 2, new long[]{128, 500, 10000, 16383}),
+  I64_3((byte) 3, new long[]{16384, 50000, 1000000, 2097151}),
+  I64_4((byte) 4, new long[]{2097152, 10000000, 200000000, 268435455}),
+  I64_5((byte) 5, new long[]{268435456, 0x30000000, 0x7FFFFFFF, 34359738367L}),
+  I64_6((byte) 6, new long[]{34359738368L, 2000000000000L, 4000000000000L, 4398046511103L}),
+  I64_7((byte) 7, new long[]{4398046511104L, 200000000000000L, 500000000000000L, 562949953421311L}),
+  I64_8((byte) 8, new long[]{0x4000000000000L,0x5000000000000L, 0x6000000000000L, 0x0FFFFFFFFFFFFFFL}),
+  I64_9((byte) 9, new long[]{0x100000000000000L, 0x3FFFFFFFFFFFFFFFL, 0x5FFFFFFFFFFFFFFL, 0x7FFFFFFFFFFFFFFFL}),
+  I64_10((byte) 10, new long[]{0xFFFFFFFFFFFFFFFFL, 0xFFFFFFFFFFFFFFFFL, 0xFFFFFFFFFFFFFFFFL, 0xFFFFFFFFFFFFFFFFL});
 
-  VarintInput(int[] values) {
+  VarintInput(byte serializedSize, int[] values) {
     fieldWidth = FieldWidth.FW_32;
+    this.serializedSize = serializedSize;
     longValues = null;
     intValues = values;
   }
 
-  VarintInput(long[] values) {
+  VarintInput(byte serializedSize, long[] values) {
     fieldWidth = FieldWidth.FW_64;
+    this.serializedSize = serializedSize;
     intValues = null;
     longValues = values;
   }
 
   private final FieldWidth fieldWidth;
+  private final byte serializedSize;
   private final int[] intValues;
   private final long[] longValues;
   private int nextIndex;
 
   FieldWidth fieldWidth() {
     return fieldWidth;
+  }
+
+  byte getSerializedSize() {
+    return serializedSize;
   }
 
   int nextIntValue() {
@@ -91,6 +98,14 @@ public enum VarintInput {
       default:
         return I64_10.nextLongValue();
     }
+  }
+
+  static VarintInput[] get32BitValues() {
+    return new VarintInput[]{I32_1, I32_2, I32_3, I32_4, I32_5};
+  }
+
+  static VarintInput[] get64BitValues() {
+    return new VarintInput[] {I64_1, I64_2, I64_3, I64_4, I64_5, I64_6, I64_7, I64_8, I64_9, I64_10};
   }
 
   // TODO(nmittler): Consider using more realistic distributions based on data analysis.
