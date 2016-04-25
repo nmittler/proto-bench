@@ -91,7 +91,7 @@ final class ReverseEncoder implements Encoder {
     writeUInt32(3, message.optionalInt);
 
     // Now write out the serialized size for this message.
-    int serializedSize = position - prevPos;
+    int serializedSize = prevPos - position;
     writeUInt32NoTag(serializedSize);
   }
 
@@ -364,8 +364,8 @@ final class ReverseEncoder implements Encoder {
   public final void writeStringNoTag(String value) throws IOException {
     final int oldPosition = position;
     try {
-      position = Utf8.encodeReverse(value, buffer, offset, spaceLeft());
-      int length = oldPosition - position;
+      int length = Utf8.encodeReverse(value, buffer, offset, spaceLeft());
+      position -= length;
       writeUInt32NoTag(length);
     } catch (Utf8.UnpairedSurrogateException e) {
       // Roll back the change - we fall back to inefficient path.

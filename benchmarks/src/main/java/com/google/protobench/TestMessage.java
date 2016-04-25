@@ -64,9 +64,9 @@ final class TestMessage {
   }
 
   public int getSerializedSize() {
-    int serializedSize = sizeManager.getSerializedSize(sizeIndex);
-    if (serializedSize == -1) {
-      int size = 0;
+    int size = sizeManager.getSerializedSize(sizeIndex);
+    if (size == -1) {
+      size = 0;
       size += Utils.computeUInt32Size(3, optionalInt);
       size += Utils.computeUInt64Size(4, optionalLong);
       size += Utils.computeFloatSize(11, optionalFloat);
@@ -147,11 +147,10 @@ final class TestMessage {
           size += 2 * repeatedBytes.length;
         }
       }
-      serializedSize = size;
-      sizeManager.setSerializedSize(sizeIndex, serializedSize);
+      sizeManager.setSerializedSize(sizeIndex, size);
     }
 
-    return serializedSize;
+    return size;
   }
 
   public NestedTestAllTypes toProtostuff() {
@@ -272,6 +271,7 @@ final class TestMessage {
 
     SerializedSizeManager(int size) {
       sizes = new int[size];
+      clearAll();
     }
 
     int getSerializedSize(int index) {

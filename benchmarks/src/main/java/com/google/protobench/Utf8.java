@@ -639,9 +639,9 @@ final class Utf8 {
     final void encodeUtf8Reverse(CharSequence in, ByteBuffer out) {
       if (out.hasArray()) {
         final int offset = out.arrayOffset();
-        int start =
+        int length =
                 Utf8.encodeReverse(in, out.array(), offset + out.position(), out.remaining());
-        out.position(start);
+        out.position(out.limit() - length);
       } else if (out.isDirect()) {
         encodeUtf8ReverseDirect(in, out);
       } else {
@@ -958,6 +958,7 @@ final class Utf8 {
 
     @Override
     int encodeUtf8Reverse(CharSequence in, byte[] out, int offset, final int length) {
+      final int end = (offset + length) - 1;
       int i = in.length() - 1;
       int j = (offset + length) - in.length();
       // Designed to take advantage of
@@ -966,7 +967,7 @@ final class Utf8 {
         out[j + i] = (byte) c;
       }
       if (i == -1) {
-        return j;
+        return in.length();
       }
       j += i;
       for (char c; i >= 0; i--) {
@@ -1004,7 +1005,7 @@ final class Utf8 {
           throw new ArrayIndexOutOfBoundsException("Failed writing " + c + " at index " + j);
         }
       }
-      return j + 1;
+      return end - j;
     }
 
     @Override
@@ -1368,7 +1369,8 @@ final class Utf8 {
 
     @Override
     int encodeUtf8Reverse(CharSequence in, byte[] out, int offset, int length) {
-      long outIx = (ARRAY_BASE_OFFSET + offset + length) - 1;
+      final long startIx = (ARRAY_BASE_OFFSET + offset + length) - 1;
+      long outIx = startIx;
       final long outStart = ARRAY_BASE_OFFSET + offset;
       //final int inLimit = in.length();
       if (length < in.length()) {
@@ -1385,7 +1387,7 @@ final class Utf8 {
       }
       if (inIx == -1) {
         // We're done, it was ASCII encoded.
-        return (int) (++outIx - ARRAY_BASE_OFFSET);
+        return in.length();
       }
 
       for (char c; inIx >= 0; --inIx) {
@@ -1425,7 +1427,7 @@ final class Utf8 {
       }
 
       // All bytes have been encoded.
-      return (int) (++outIx - ARRAY_BASE_OFFSET);
+      return (int) (startIx - outIx);
     }
 
     @Override

@@ -1,11 +1,31 @@
 package com.google.protobench;
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+
+import com.google.protobench.TestMessage.SerializedSizeManager;
+
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Arrays;
 
 public class EncoderEquivalenceTest {
+  private static final int STRING_LENGTH = 5;
+  private static final int NUM_REPEATED_FIELDS = 5;
+  private static final int TREE_HEIGHT = 2;
+  private static final int BRANCHING_FACTOR = 2;
+
+  @Test
+  public void messagesShouldBeEquivalent() throws IOException {
+    int numMessages = Utils.calcNodesInTree(BRANCHING_FACTOR, TREE_HEIGHT);
+    SerializedSizeManager sizeManager = new SerializedSizeManager(numMessages);
+    TestMessage message = TestMessage.newRandomInstance(0, STRING_LENGTH, NUM_REPEATED_FIELDS,
+            TREE_HEIGHT, BRANCHING_FACTOR, sizeManager);
+
+    assertArrayEquals(writeMessageForward(message), writeMessageReverse(message));
+  }
 
   @Test
   public void writeUInt32ShouldBeEquivalent() throws Exception {
@@ -27,22 +47,38 @@ public class EncoderEquivalenceTest {
     }
   }
 
+  private byte[] writeMessageForward(TestMessage message) throws IOException {
+    byte[] bytes = new byte[1024 * 1024];
+    ForwardEncoder encoder = new ForwardEncoder(bytes, 0, bytes.length);
+    encoder.encodeMessageNoTag(message);
+    return Arrays.copyOfRange(bytes, 0, encoder.getTotalBytesWritten());
+  }
+
+  private byte[] writeMessageReverse(TestMessage message) throws IOException {
+    byte[] bytes = new byte[1024 * 1024];
+    ReverseEncoder encoder = new ReverseEncoder(bytes, 0, bytes.length);
+    encoder.encodeMessageNoTag(message);
+
+    int startIx = bytes.length - encoder.getTotalBytesWritten();
+    return Arrays.copyOfRange(bytes, startIx, bytes.length);
+  }
+
   private void verifyUInt32Equivalence(byte numBytes, int value) throws Exception {
     byte[] forwardBytes = writeUInt32Forward(value);
     byte[] reverseBytes = writeUInt32Reverse(value);
     String message = "numBytes=" + numBytes + ", value=" + value;
-    Assert.assertEquals(message, numBytes, forwardBytes.length);
-    Assert.assertEquals(message, numBytes, reverseBytes.length);
-    Assert.assertArrayEquals(message, forwardBytes, reverseBytes);
+    assertEquals(message, numBytes, forwardBytes.length);
+    assertEquals(message, numBytes, reverseBytes.length);
+    assertArrayEquals(message, forwardBytes, reverseBytes);
   }
 
   private void verifyUInt64Equivalence(int numBytes, long value) throws Exception {
     byte[] forwardBytes = writeUInt64Forward(value);
     byte[] reverseBytes = writeUInt64Reverse(value);
     String message = "numBytes=" + numBytes + ", value=" + value;
-    Assert.assertEquals(message, numBytes, forwardBytes.length);
-    Assert.assertEquals(message, numBytes, reverseBytes.length);
-    Assert.assertArrayEquals(message, forwardBytes, reverseBytes);
+    assertEquals(message, numBytes, forwardBytes.length);
+    assertEquals(message, numBytes, reverseBytes.length);
+    assertArrayEquals(message, forwardBytes, reverseBytes);
   }
 
   private byte[] writeUInt32Forward(int value) throws Exception {

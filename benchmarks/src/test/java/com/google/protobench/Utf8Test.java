@@ -200,8 +200,12 @@ public class Utf8Test extends TestCase {
 
   private static byte[] encodeToByteArrayReverse(String message, int length, Utf8.Processor processor) {
     byte[] output = new byte[length];
-    int start = processor.encodeUtf8Reverse(message, output, 0, output.length);
-    return Arrays.copyOfRange(output, start, output.length);
+    int written = processor.encodeUtf8Reverse(message, output, 0, output.length);
+    try {
+      return Arrays.copyOfRange(output, output.length - written, output.length);
+    } catch (IndexOutOfBoundsException e) {
+      throw e;
+    }
   }
 
   private static byte[] encodeToByteBuffer(String message, int length, boolean direct,
