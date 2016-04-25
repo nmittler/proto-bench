@@ -10,11 +10,7 @@ public final class Utils {
   }
 
   static int calcNodesInTree(int branchingFactor, int treeHight) {
-    int total = 0;
-    while(treeHight >= 0) {
-      total += Math.pow(branchingFactor, treeHight--);
-    }
-    return total;
+    return (int) ((Math.pow(branchingFactor, treeHight + 1) - 1) / (branchingFactor - 1));
   }
 
   static String randomString(int size) {
