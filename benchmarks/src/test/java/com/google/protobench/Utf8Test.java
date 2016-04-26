@@ -5,15 +5,15 @@ import static org.junit.Assert.assertArrayEquals;
 import junit.framework.TestCase;
 
 import org.junit.Assert;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.regex.Pattern;
 
-/**
- * Unit tests for {@link Utf8}.
- */
+@RunWith(JUnit4.class)
 public class Utf8Test extends TestCase {
   private static final int NUM_CHARS = 16384;
 

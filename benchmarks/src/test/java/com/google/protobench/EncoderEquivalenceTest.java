@@ -7,10 +7,13 @@ import com.google.protobench.TestMessage.SerializedSizeManager;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 import java.io.IOException;
 import java.util.Arrays;
 
+@RunWith(JUnit4.class)
 public class EncoderEquivalenceTest {
   private static final int STRING_LENGTH = 5;
   private static final int NUM_REPEATED_FIELDS = 5;
