@@ -1,10 +1,11 @@
 package com.google.protobench;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-import junit.framework.TestCase;
-
-import org.junit.Assert;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -14,12 +15,13 @@ import java.util.Random;
 import java.util.regex.Pattern;
 
 @RunWith(JUnit4.class)
-public class Utf8Test extends TestCase {
+public class Utf8Test {
   private static final int NUM_CHARS = 16384;
 
   private static final Utf8.Processor safeProcessor = new Utf8.SafeProcessor();
   private static final Utf8.Processor unsafeProcessor = new Utf8.UnsafeProcessor();
 
+  @Test
   public void testEncode() {
     assertEncoding(randomString(0x80));
     assertEncoding(randomString(0x90));
@@ -28,6 +30,7 @@ public class Utf8Test extends TestCase {
     assertEncoding(randomString(0x10ffff));
   }
 
+  @Test
   public void testEncodeReverse() {
     assertEncodingReverse(randomString(0x80));
     assertEncodingReverse(randomString(0x90));
@@ -36,6 +39,7 @@ public class Utf8Test extends TestCase {
     assertEncodingReverse(randomString(0x10ffff));
   }
 
+  @Test
   public void testEncode_insufficientSpace() {
     assertEncoding_insufficientSpace(randomString(0x80));
     assertEncoding_insufficientSpace(randomString(0x90));
@@ -44,22 +48,26 @@ public class Utf8Test extends TestCase {
     assertEncoding_insufficientSpace(randomString(0x10ffff));
   }
 
+  @Test
   public void testValid() {
     assertIsValid(new byte[]{(byte) 0xE0, (byte) 0xB9, (byte) 0x96}, true);
     assertIsValid(new byte[]{(byte) 0xF0, (byte) 0xB2, (byte) 0x83, (byte) 0xBC}, true);
   }
 
+  @Test
   public void testOverlongIsInvalid() {
     assertIsValid(new byte[]{(byte) 0xC0, (byte) 0x81}, false);
     assertIsValid(new byte[]{(byte) 0xE0, (byte) 0x81, (byte) 0x81}, false);
     assertIsValid(new byte[]{(byte) 0xF0, (byte) 0x81, (byte) 0x81, (byte) 0x81}, false);
   }
 
+  @Test
   public void testMaxCodepointExceeded() {
     // byte1 > 0xF4
     assertIsValid(new byte[]{(byte) 0xF5, (byte) 0x81, (byte) 0x81, (byte) 0x81}, false);
   }
 
+  @Test
   public void testInvalidSurrogateCodepoint() {
     assertIsValid(new byte[]{(byte) 0xED, (byte) 0xA1, (byte) 0x81}, false);
 
