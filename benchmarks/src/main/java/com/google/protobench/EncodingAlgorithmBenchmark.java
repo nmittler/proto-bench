@@ -14,18 +14,25 @@ import org.openjdk.jmh.annotations.TearDown;
 @State(Scope.Benchmark)
 @Fork(1)
 public class EncodingAlgorithmBenchmark {
-  private static final int STRING_LENGTH = 50;
-  private static final int NUM_REPEATED_FIELDS = 20;
-  private static final int TREE_HEIGHT = 2;
-  private static final int BRANCHING_FACTOR = 4;
-
   public enum Direction {
     FORWARD,
     REVERSE
   }
 
   @Param
-  private Direction direction;
+  public Direction direction;
+
+  @Param({"50"})
+  public int stringLength;
+
+  @Param({"20"})
+  public int numRepeatedFields;
+
+  @Param({"2"})
+  public int treeHeight;
+
+  @Param({"4"})
+  public int branchingFactor;
 
   private Encoder encoder;
   private byte[] output = new byte[1024 * 1024];
@@ -36,10 +43,10 @@ public class EncodingAlgorithmBenchmark {
   @Setup
   public void setUp() throws Exception {
     // Create the message.
-    int numMessages = Utils.calcNodesInTree(BRANCHING_FACTOR, TREE_HEIGHT);
+    int numMessages = Utils.calcNodesInTree(branchingFactor, treeHeight);
     sizeManager = new SerializedSizeManager(numMessages);
-    message = TestMessage.newRandomInstance(0, STRING_LENGTH, NUM_REPEATED_FIELDS,
-            TREE_HEIGHT, BRANCHING_FACTOR, sizeManager);
+    message = TestMessage.newRandomInstance(0, stringLength, numRepeatedFields,
+        treeHeight, branchingFactor, sizeManager);
 
     switch (direction) {
       case FORWARD:
